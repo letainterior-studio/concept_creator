@@ -369,7 +369,7 @@ async function loadTextureImages(materials) {
           if (/смесит|фурнитур|кран/.test(n)) return 'brass faucet fixture texture';
           if (/тумб|мебел|шкаф/.test(n)) return 'wood furniture texture close-up';
           if (/камень|stone/.test(n)) return 'natural stone texture';
-          return n.replace(/[^ -]/g,'').trim().substring(0,50) || 'interior material texture';
+          return 'interior material texture';
         }
         var r = await fetch('/api/texture?query=' + encodeURIComponent(toEn(m.name)));
         var d = await r.json();
