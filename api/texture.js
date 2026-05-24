@@ -3,29 +3,17 @@ export default async function handler(req, res) {
   const { query } = req.query;
   if (!query) return res.status(400).json({ error: 'No query' });
 
-  // Map query to ambientCG category and search keywords
   const q = query.toLowerCase();
   
-  let category = 'Wood';
-  let keywords = '';
+  let category = 'WoodFloor';
   
-  if (/marble|stone|calacatta|travertine/.test(q)) {
-    category = 'Marble'; keywords = q;
-  } else if (/dark.wood|walnut|oak|veneer/.test(q)) {
-    category = 'WoodFloor'; keywords = 'dark';
-  } else if (/wood|floor/.test(q)) {
-    category = 'WoodFloor'; keywords = q;
-  } else if (/brass|gold|metal|steel/.test(q)) {
-    category = 'Metal'; keywords = q;
-  } else if (/tile|ceramic/.test(q)) {
-    category = 'Tiles'; keywords = q;
-  } else if (/concrete|cement/.test(q)) {
-    category = 'Concrete'; keywords = q;
-  } else if (/fabric|velvet/.test(q)) {
-    category = 'Fabric'; keywords = q;
-  } else if (/plaster|wall/.test(q)) {
-    category = 'Plaster'; keywords = q;
-  }
+  if (/marble|stone|calacatta|travertine/.test(q)) category = 'Marble';
+  else if (/wood|walnut|oak|veneer|floor/.test(q)) category = 'WoodFloor';
+  else if (/brass|gold|metal|steel/.test(q)) category = 'Metal';
+  else if (/tile|ceramic/.test(q)) category = 'Tiles';
+  else if (/concrete|cement/.test(q)) category = 'Concrete';
+  else if (/fabric|velvet/.test(q)) category = 'Fabric';
+  else if (/plaster|wall/.test(q)) category = 'Plaster';
 
   try {
     const url = `https://ambientcg.com/api/v2/full_json?include=imageData&category=${category}&sort=Popular&limit=5`;
@@ -36,18 +24,14 @@ export default async function handler(req, res) {
       return res.status(404).json({ error: 'Not found' });
     }
     
-    // Pick a random one from top 5 for variety
     const idx = Math.floor(Math.random() * Math.min(5, d.foundAssets.length));
     const asset = d.foundAssets[idx];
+    const id = asset.assetId;
     
-    // Get 512px thumbnail
-    const imageUrl = asset.previewImage?.['512-JPG-242424'] || 
-                     asset.previewImage?.['512-PNG'] ||
-                     asset.previewImage?.['256-JPG-242424'];
+    // Use the flat color texture from CDN directly
+    const flatUrl = `https://acg-media.struffelproductions.com/file/ambientCG-Web/media/surface-preview/${id}/${id}_SQ_Color.jpg`;
     
-    if (!imageUrl) return res.status(404).json({ error: 'No image' });
-    
-    res.json({ url: imageUrl, name: asset.displayName });
+    res.json({ url: flatUrl, name: asset.displayName });
   } catch(e) {
     res.status(500).json({ error: e.message });
   }
