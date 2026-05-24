@@ -5,48 +5,40 @@ export default async function handler(req, res) {
 
   const q = query.toLowerCase();
   
-  // Determine category AND search keywords from query
   let category = 'WoodFloor';
   let searchKeyword = '';
   
-  if (/marble|calacatta|travertine|stone|мрамор|камень/.test(q)) {
+  if (/marble|calacatta|travertine|stone/.test(q)) {
     category = 'Marble';
-    if (/light|beige|white|warm|бежев|светл/.test(q)) searchKeyword = 'light';
-    else if (/dark|black|grey|темн|черн/.test(q)) searchKeyword = 'dark';
-    else searchKeyword = 'light'; // default marble to light
-  } else if (/dark.wood|walnut|veneer|орех|темн.*дер/.test(q)) {
+    searchKeyword = /dark|black|grey/.test(q) ? 'dark' : 'light';
+  } else if (/dark.*wood|walnut|veneer/.test(q)) {
     category = 'WoodFloor';
     searchKeyword = 'dark';
-  } else if (/light.*wood|oak|pale.*wood|светл.*дер|дуб/.test(q)) {
+  } else if (/light.*wood|oak|pale/.test(q)) {
     category = 'WoodFloor';
     searchKeyword = 'light';
-  } else if (/wood|шпон|мдф/.test(q)) {
+  } else if (/wood|floor/.test(q)) {
     category = 'WoodFloor';
-    searchKeyword = '';
-  } else if (/brass|gold|bronze|латун|золот|бронз/.test(q)) {
+  } else if (/brass|gold|bronze/.test(q)) {
     category = 'Metal';
     searchKeyword = 'gold';
-  } else if (/black.*metal|steel|черн.*метал|сталь/.test(q)) {
+  } else if (/black.*metal|steel/.test(q)) {
     category = 'Metal';
     searchKeyword = 'dark';
-  } else if (/metal|метал/.test(q)) {
+  } else if (/metal/.test(q)) {
     category = 'Metal';
-    searchKeyword = '';
-  } else if (/tile|ceramic|плитк|керамогран/.test(q)) {
+  } else if (/tile|ceramic/.test(q)) {
     category = 'Tiles';
-    if (/light|white|beige|светл|бел/.test(q)) searchKeyword = 'light';
-    else if (/dark|black|темн/.test(q)) searchKeyword = 'dark';
-  } else if (/concrete|cement|бетон/.test(q)) {
+    searchKeyword = /dark|black/.test(q) ? 'dark' : 'light';
+  } else if (/concrete|cement/.test(q)) {
     category = 'Concrete';
-    if (/light|grey|серый/.test(q)) searchKeyword = 'light';
-  } else if (/fabric|velvet|ткань/.test(q)) {
+  } else if (/fabric|velvet/.test(q)) {
     category = 'Fabric';
-  } else if (/plaster|wall|штукатурк/.test(q)) {
+  } else if (/plaster|wall/.test(q)) {
     category = 'Plaster';
   }
 
   try {
-    // Search with keyword filter if available
     let apiUrl = `https://ambientcg.com/api/v2/full_json?include=imageData&category=${category}&sort=Popular&limit=20`;
     if (searchKeyword) apiUrl += `&q=${searchKeyword}`;
     
@@ -54,25 +46,13 @@ export default async function handler(req, res) {
     const d = await r.json();
     
     if (!d.foundAssets || d.foundAssets.length === 0) {
-      // Fallback without keyword
-      const r2 = await fetch(`https://ambientcg.com/api/v2/full_json?include=imageData&category=${category}&sort=Popular&limit=5`);
-      const d2 = await r2.json();
-      if (!d2.foundAssets || d2.foundAssets.length === 0) {
-        return res.status(404).json({ error: 'Not found' });
-      }
-      const asset = d2.foundAssets[0];
-      const id = asset.assetId;
-      const flatUrl = `https://acg-media.struffelproductions.com/file/ambientCG-Web/media/surface-preview/${id}/${id}_SQ_Color.jpg`;
-      return res.json({ url: flatUrl, name: asset.displayName });
+      return res.status(404).json({ error: 'Not found' });
     }
     
-    // Filter by tag if searchKeyword set
     let filtered = d.foundAssets;
     if (searchKeyword) {
-      filtered = d.foundAssets.filter(a => 
-        a.tags && a.tags.some(t => t.includes(searchKeyword))
-      );
-      if (filtered.length === 0) filtered = d.foundAssets;
+      const f = d.foundAssets.filter(a => a.tags && a.tags.some(t => t.includes(searchKeyword)));
+      if (f.length > 0) filtered = f;
     }
     
     const idx = Math.floor(Math.random() * Math.min(3, filtered.length));
