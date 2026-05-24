@@ -5,30 +5,79 @@ export default async function handler(req, res) {
 
   const q = query.toLowerCase();
   
+  // Determine category AND search keywords from query
   let category = 'WoodFloor';
+  let searchKeyword = '';
   
-  if (/marble|stone|calacatta|travertine/.test(q)) category = 'Marble';
-  else if (/wood|walnut|oak|veneer|floor/.test(q)) category = 'WoodFloor';
-  else if (/brass|gold|metal|steel/.test(q)) category = 'Metal';
-  else if (/tile|ceramic/.test(q)) category = 'Tiles';
-  else if (/concrete|cement/.test(q)) category = 'Concrete';
-  else if (/fabric|velvet/.test(q)) category = 'Fabric';
-  else if (/plaster|wall/.test(q)) category = 'Plaster';
+  if (/marble|calacatta|travertine|stone|мрамор|камень/.test(q)) {
+    category = 'Marble';
+    if (/light|beige|white|warm|бежев|светл/.test(q)) searchKeyword = 'light';
+    else if (/dark|black|grey|темн|черн/.test(q)) searchKeyword = 'dark';
+    else searchKeyword = 'light'; // default marble to light
+  } else if (/dark.wood|walnut|veneer|орех|темн.*дер/.test(q)) {
+    category = 'WoodFloor';
+    searchKeyword = 'dark';
+  } else if (/light.*wood|oak|pale.*wood|светл.*дер|дуб/.test(q)) {
+    category = 'WoodFloor';
+    searchKeyword = 'light';
+  } else if (/wood|шпон|мдф/.test(q)) {
+    category = 'WoodFloor';
+    searchKeyword = '';
+  } else if (/brass|gold|bronze|латун|золот|бронз/.test(q)) {
+    category = 'Metal';
+    searchKeyword = 'gold';
+  } else if (/black.*metal|steel|черн.*метал|сталь/.test(q)) {
+    category = 'Metal';
+    searchKeyword = 'dark';
+  } else if (/metal|метал/.test(q)) {
+    category = 'Metal';
+    searchKeyword = '';
+  } else if (/tile|ceramic|плитк|керамогран/.test(q)) {
+    category = 'Tiles';
+    if (/light|white|beige|светл|бел/.test(q)) searchKeyword = 'light';
+    else if (/dark|black|темн/.test(q)) searchKeyword = 'dark';
+  } else if (/concrete|cement|бетон/.test(q)) {
+    category = 'Concrete';
+    if (/light|grey|серый/.test(q)) searchKeyword = 'light';
+  } else if (/fabric|velvet|ткань/.test(q)) {
+    category = 'Fabric';
+  } else if (/plaster|wall|штукатурк/.test(q)) {
+    category = 'Plaster';
+  }
 
   try {
-    const url = `https://ambientcg.com/api/v2/full_json?include=imageData&category=${category}&sort=Popular&limit=5`;
-    const r = await fetch(url);
+    // Search with keyword filter if available
+    let apiUrl = `https://ambientcg.com/api/v2/full_json?include=imageData&category=${category}&sort=Popular&limit=20`;
+    if (searchKeyword) apiUrl += `&q=${searchKeyword}`;
+    
+    const r = await fetch(apiUrl);
     const d = await r.json();
     
     if (!d.foundAssets || d.foundAssets.length === 0) {
-      return res.status(404).json({ error: 'Not found' });
+      // Fallback without keyword
+      const r2 = await fetch(`https://ambientcg.com/api/v2/full_json?include=imageData&category=${category}&sort=Popular&limit=5`);
+      const d2 = await r2.json();
+      if (!d2.foundAssets || d2.foundAssets.length === 0) {
+        return res.status(404).json({ error: 'Not found' });
+      }
+      const asset = d2.foundAssets[0];
+      const id = asset.assetId;
+      const flatUrl = `https://acg-media.struffelproductions.com/file/ambientCG-Web/media/surface-preview/${id}/${id}_SQ_Color.jpg`;
+      return res.json({ url: flatUrl, name: asset.displayName });
     }
     
-    const idx = Math.floor(Math.random() * Math.min(5, d.foundAssets.length));
-    const asset = d.foundAssets[idx];
-    const id = asset.assetId;
+    // Filter by tag if searchKeyword set
+    let filtered = d.foundAssets;
+    if (searchKeyword) {
+      filtered = d.foundAssets.filter(a => 
+        a.tags && a.tags.some(t => t.includes(searchKeyword))
+      );
+      if (filtered.length === 0) filtered = d.foundAssets;
+    }
     
-    // Use the flat color texture from CDN directly
+    const idx = Math.floor(Math.random() * Math.min(3, filtered.length));
+    const asset = filtered[idx];
+    const id = asset.assetId;
     const flatUrl = `https://acg-media.struffelproductions.com/file/ambientCG-Web/media/surface-preview/${id}/${id}_SQ_Color.jpg`;
     
     res.json({ url: flatUrl, name: asset.displayName });
