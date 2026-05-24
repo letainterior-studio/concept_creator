@@ -355,7 +355,23 @@ async function loadTextureImages(materials) {
     // Try Unsplash first, fallback to built-in
     (async function(i, m, skeleton, image) {
       try {
-        var r = await fetch('/api/texture?query=' + encodeURIComponent(m.name));
+        function toEn(n) {
+          n = n.toLowerCase().replace(/\*\*/g,'');
+          if (/мрамор|marble|calacatta|statuario/.test(n)) return 'marble texture white veins luxury interior';
+          if (/орех|дуб|тик|венге|тёмн/.test(n)) return 'dark walnut wood texture close-up';
+          if (/дерев|wood|шпон|мдф/.test(n)) return 'natural wood grain texture interior';
+          if (/латун|бронз|золот|brass|gold/.test(n)) return 'brushed brass gold metal texture';
+          if (/стекл|glass|зеркал/.test(n)) return 'glass transparent texture interior';
+          if (/бетон|concrete|цемент/.test(n)) return 'concrete grey texture close-up';
+          if (/акрил|столешн|corian/.test(n)) return 'white acrylic solid surface texture';
+          if (/плитк|керамогран|керамик|tile/.test(n)) return 'ceramic tile luxury interior texture';
+          if (/чёрн|черн|metal|сталь|нержав/.test(n)) return 'black matte metal texture';
+          if (/смесит|фурнитур|кран/.test(n)) return 'brass faucet fixture texture';
+          if (/тумб|мебел|шкаф/.test(n)) return 'wood furniture texture close-up';
+          if (/камень|stone/.test(n)) return 'natural stone texture';
+          return n.replace(/[^ -]/g,'').trim().substring(0,50) || 'interior material texture';
+        }
+        var r = await fetch('/api/texture?query=' + encodeURIComponent(toEn(m.name)));
         var d = await r.json();
         if (d.url) {
           image.src = d.url;
