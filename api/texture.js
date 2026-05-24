@@ -4,63 +4,46 @@ export default async function handler(req, res) {
   if (!query) return res.status(400).json({ error: 'No query' });
 
   const q = query.toLowerCase();
-  
-  let category = 'WoodFloor';
-  let searchKeyword = '';
-  
-  if (/marble|calacatta|travertine|stone/.test(q)) {
-    category = 'Marble';
-    searchKeyword = /dark|black|grey/.test(q) ? 'dark' : 'light';
-  } else if (/dark.*wood|walnut|veneer/.test(q)) {
-    category = 'WoodFloor';
-    searchKeyword = 'dark';
-  } else if (/light.*wood|oak|pale/.test(q)) {
-    category = 'WoodFloor';
-    searchKeyword = 'light';
-  } else if (/wood|floor/.test(q)) {
-    category = 'WoodFloor';
-  } else if (/brass|gold|bronze/.test(q)) {
-    category = 'Metal';
-    searchKeyword = 'gold';
-  } else if (/black.*metal|steel/.test(q)) {
-    category = 'Metal';
-    searchKeyword = 'dark';
-  } else if (/metal/.test(q)) {
-    category = 'Metal';
+
+  // Map material to Poly Haven categories/tags
+  let category = 'wood';
+  if (/marble|calacatta|travertine/.test(q)) {
+    category = /dark|black/.test(q) ? 'marble' : 'marble';
+  } else if (/wood|walnut|oak|veneer|floor/.test(q)) {
+    category = 'wood';
+  } else if (/brass|gold|bronze|copper|metal/.test(q)) {
+    category = 'metal';
   } else if (/tile|ceramic/.test(q)) {
-    category = 'Tiles';
-    searchKeyword = /dark|black/.test(q) ? 'dark' : 'light';
+    category = 'tile';
   } else if (/concrete|cement/.test(q)) {
-    category = 'Concrete';
-  } else if (/fabric|velvet/.test(q)) {
-    category = 'Fabric';
-  } else if (/plaster|wall/.test(q)) {
-    category = 'Plaster';
+    category = 'concrete';
+  } else if (/fabric|velvet|textile/.test(q)) {
+    category = 'fabric';
+  } else if (/plaster|wall|stucco/.test(q)) {
+    category = 'plaster';
+  } else if (/stone/.test(q)) {
+    category = 'stone';
   }
 
   try {
-    let apiUrl = `https://ambientcg.com/api/v2/full_json?include=imageData&category=${category}&sort=Popular&limit=20`;
-    if (searchKeyword) apiUrl += `&q=${searchKeyword}`;
+    // Get list of textures in category
+    const listUrl = `https://api.polyhaven.com/assets?type=textures&categories=${category}`;
+    const r = await fetch(listUrl, {
+      headers: { 'User-Agent': 'LetaConceptCreator/1.0' }
+    });
+    const data = await r.json();
     
-    const r = await fetch(apiUrl);
-    const d = await r.json();
-    
-    if (!d.foundAssets || d.foundAssets.length === 0) {
-      return res.status(404).json({ error: 'Not found' });
-    }
-    
-    let filtered = d.foundAssets;
-    if (searchKeyword) {
-      const f = d.foundAssets.filter(a => a.tags && a.tags.some(t => t.includes(searchKeyword)));
-      if (f.length > 0) filtered = f;
-    }
-    
-    const idx = Math.floor(Math.random() * Math.min(3, filtered.length));
-    const asset = filtered[idx];
-    const id = asset.assetId;
-    const flatUrl = `https://acg-media.struffelproductions.com/file/ambientCG-Web/media/surface-preview/${id}/${id}_SQ_Color.jpg`;
-    
-    res.json({ url: flatUrl, name: asset.displayName });
+    const keys = Object.keys(data);
+    if (!keys.length) return res.status(404).json({ error: 'Not found' });
+
+    // Pick random one from first 10
+    const idx = Math.floor(Math.random() * Math.min(10, keys.length));
+    const assetId = keys[idx];
+
+    // Get the render preview image (flat texture view)
+    const previewUrl = `https://cdn.polyhaven.com/asset_img/thumbs/${assetId}.png?width=512`;
+
+    res.json({ url: previewUrl, name: assetId });
   } catch(e) {
     res.status(500).json({ error: e.message });
   }
